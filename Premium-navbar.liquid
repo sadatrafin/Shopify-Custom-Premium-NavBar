@@ -1,0 +1,925 @@
+{% liquid
+  assign main_menu = section.settings.main_menu
+  assign logo = section.settings.logo
+  assign logo_width = section.settings.logo_max_width
+%}
+
+<style>
+  :root {
+    --nav-bg: {{ section.settings.bg_color | default: '#ffffff' }};
+    --nav-text: {{ section.settings.link_color | default: '#000000' }};
+    --accent-color: #000;
+    --transition-smooth: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+
+  /* ── Header Base ── */
+  .sk-header-main {
+    background: var(--nav-bg);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 {{ section.settings.padding_horizontal | default: 20 }}px;
+    height: {{ section.settings.nav_height | default: 80 }}px;
+    position: sticky; top: 0; z-index: 1000;
+    border-bottom: 1px solid #eee;
+    max-width: 1800px;
+    margin: auto;
+  }
+
+  /* ── Country Selector (Customized to match image) ── */
+  .sk-country-container { position: relative; margin-right: 15px; }
+
+  .sk-country-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    color: var(--nav-text);
+    padding: 5px 0;
+    user-select: none;
+  }
+
+  .sk-country-flag-main {
+    width: 20px;
+    height: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  .sk-country-trigger svg {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 14px;
+    height: 14px;
+    opacity: 0.6;
+  }
+
+  /* Arrow Rotation */
+  .sk-country-container.is-active .sk-country-trigger svg {
+    transform: rotate(180deg);
+  }
+
+  .sk-country-dropdown {
+    position: absolute;
+    top: calc(100% + 15px);
+    right: 0;
+    background: #fff;
+    width: 240px;
+    border-radius: 6px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: var(--transition-smooth);
+    list-style: none;
+    padding: 8px 0;
+    z-index: 9999;
+    margin: 0;
+  }
+
+  .sk-country-container.is-active .sk-country-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .sk-country-item { list-style: none; }
+
+  .sk-country-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    text-decoration: none;
+    color: #111;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+
+  .sk-country-link:hover {
+    background: #f8f8f8;
+  }
+
+  .sk-dropdown-flag {
+    width: 20px;
+    height: auto;
+    object-fit: contain;
+  }
+
+  /* ── Search Overlay & Predictive Results ── */
+  .sk-search-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 7000;
+    clip-path: circle(0% at 90% 10%);
+    transition: clip-path 0.6s ease-in-out;
+  }
+  .sk-search-overlay.is-open { clip-path: circle(150% at 90% 10%); }
+
+  .sk-search-top-content {
+    background: #fff;
+    width: 100%;
+    padding: 60px 20px;
+    display: flex;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  }
+
+  .sk-search-inner { width: 100%; max-width: 900px; position: relative; background: white; color: black !important; }
+  .sk-search-field-wrapper { position: relative; margin-bottom: 30px; }
+
+  .sk-search-field {
+    width: 100%; border: 1px solid #000;
+    padding: 12px 40px 12px 15px; font-size: 16px; font-weight: 400; outline: none;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: #000;
+  }
+
+  .sk-close-search {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 20px; cursor: pointer; background: none; border: none; color: #000;
+  }
+
+  .sk-predictive-results {
+    width: 100%; max-height: 50vh; overflow-y: auto;
+    text-align: left;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px 20px;
+  }
+  @media (max-width: 768px) {
+    .sk-predictive-results { grid-template-columns: repeat(1, 1fr); gap: 15px; }
+    .sk-search-top-content { padding: 40px 15px; }
+  }
+
+  .sk-result-item { display: flex; align-items: center; gap: 15px; text-decoration: none; color: #000; transition: 0.3s; }
+  .sk-result-item:hover { opacity: 0.7; }
+  .sk-result-item img { width: 60px; height: 60px; object-fit: contain; background: #f4f4f4; padding: 5px; }
+  .sk-result-info { display: flex; flex-direction: column; justify-content: center; }
+  .sk-result-title { font-size: 12px; font-weight: 800; margin: 0 0 4px 0; text-transform: uppercase; }
+  .sk-result-price { font-size: 12px; color: black; margin: 0; font-weight: 300; }
+
+  /* ── Drawer & Overlay ── */
+  .sk-drawer {
+    position: fixed; top: 0; left: -100%; width: 350px; height: 100%;
+    background: #fff; z-index: 9000; transition: var(--transition-smooth);
+    padding: 50px 30px; box-shadow: 20px 0 50px rgba(0,0,0,0.05);
+    overflow-y: auto;
+  }
+  .sk-drawer.is-open { left: 0; }
+
+  .sk-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0; visibility: hidden; z-index: 8000; transition: opacity 0.4s ease, visibility 0.4s ease;
+    pointer-events: none;
+  }
+  .sk-overlay.is-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+
+  /* ── Menu Items ── */
+  .sk-menu-item { list-style: none; margin-bottom: 10px; }
+  .sk-menu-link {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 18px; font-weight: 600; text-decoration: none; color: #000;
+    padding: 12px 0; transition: 0.3s;
+  }
+  .sk-menu-link:hover { padding-left: 10px; color: #666; }
+
+  .sk-submenu {
+    list-style: none; max-height: 0; overflow: hidden;
+    transition: max-height 0.5s ease; background: #f9f9f9; padding-left: 15px;
+  }
+  .sk-menu-item.is-open .sk-submenu { max-height: 1000px; }
+  .sk-menu-item.is-open .chevron { transform: rotate(180deg); }
+  .chevron { transition: transform 0.3s; }
+
+  .sk-actions { display: flex; align-items: center; gap: 20px; justify-content: flex-end; }
+  .sk-icon { color: var(--nav-text); cursor: pointer; position: relative; background: none; border: none; display: flex; align-items: center; padding: 0; }
+  .sk-icon svg { width: 22px; height: 22px; stroke-width: 1.5; }
+
+
+  /* =========================================================================
+     🔥 NEW ADVANCED RESPONSIVENESS & STICKY FEATURES (APPENDED)
+     ========================================================================= */
+
+  /* Sticky Mode Overrides */
+  .sk-header-main {
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+    will-change: transform, background-color;
+  }
+
+  .sk-header-main.sk-sticky-none { position: relative !important; }
+
+  .sk-header-main.sk-sticky-always,
+  .sk-header-main.sk-sticky-up {
+    position: fixed !important;
+    top: 0; left: 0; right: 0; width: 100%;
+  }
+
+  .sk-header-main.is-hidden {
+    transform: translateY(-100%) !important;
+  }
+
+  /* Scrolled State */
+  .sk-header-main.is-scrolled {
+    background: var(--nav-bg) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+    border-bottom: 1px solid transparent !important; /* Removes harsh line when floating */
+  }
+
+  /* Transparent Top State */
+  .sk-header-main.is-transparent {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none !important;
+    position: absolute !important; /* Merges behind hero section */
+  }
+
+  /* Transparent Color Switching (Only targeting text/icons, not dropdowns) */
+  .sk-header-main.is-transparent .sk-icon,
+  .sk-header-main.is-transparent .sk-country-trigger span,
+  .sk-header-main.is-transparent .sk-logo span {
+    color: #ffffff !important;
+  }
+  .sk-header-main.is-transparent .sk-icon svg,
+  .sk-header-main.is-transparent .sk-country-trigger svg {
+    stroke: #ffffff !important;
+    color: #ffffff !important;
+  }
+
+  /* Advanced Mobile & Tablet Optimization */
+  @media (max-width: 990px) {
+    .sk-header-main {
+      padding: 0 15px !important;
+      height: 65px !important; /* Slightly thinner premium look on mobile */
+    }
+
+    /* Touch-Friendly Spacing & Alignment */
+    .sk-actions { gap: 12px !important; }
+
+    .sk-icon, .sk-country-trigger {
+      min-width: 40px;
+      min-height: 40px;
+      justify-content: center;
+      padding: 5px; /* Increase tap area */
+    }
+
+    /* Clean Icon Layout */
+    .sk-country-container { margin-right: 0px !important; }
+    .sk-country-trigger span { display: none !important; } /* Hide text, show flag */
+    .sk-country-trigger gap: 5px !important;
+
+    /* Logo scaling */
+    .sk-logo img { max-width: 110px !important; height: auto; }
+    .sk-logo span { font-size: 18px !important; }
+
+    /* Cart Bubble centering for mobile */
+    .sk-icon span { top: 2px !important; right: 0px !important; }
+  }
+
+  /* ── ADDITIONAL OVERRIDES ADDED TO TARGET NEW REQUIREMENTS ── */
+  .sk-header-main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    transition: z-index 0s, transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+  }
+
+  /* Header goes behind any open drawer */
+  .sk-header-main.sk-behind-drawer {
+    z-index: 10 !important;
+  }
+
+  /* ── Minimog Cart Drawer: force above navbar, glass backdrop ── */
+  #MinimogCartDrawer {
+    z-index: 9500 !important;
+  }
+
+  /* Target Minimog's own cart overlay and give it glass crystal style */
+  .m-cart__overlay,
+  .m-overlay,
+  [data-overlay] {
+    backdrop-filter: blur(18px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+    background: rgba(10, 10, 20, 0.25) !important;
+  }
+
+  /* General: any Shopify theme overlay that covers page when cart opens */
+  body.js-drawer-open .m-cart__overlay,
+  body[class*="drawer"] .m-cart__overlay {
+    backdrop-filter: blur(18px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  }
+
+  @media (max-width: 990px) {
+    .sk-country-container,
+    a[href="/account"],
+    #openSearch {
+      display: none !important;
+    }
+  }
+
+  .sk-drawer-mobile-extras {
+    display: none; /* Hidden on desktop */
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  @media (max-width: 990px) {
+    .sk-drawer-mobile-extras {
+      display: flex; /* Show only on mobile */
+    }
+  }
+
+  .sk-drawer-mobile-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #000;
+    text-decoration: none;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    letter-spacing: 0.2px;
+    transition: padding-left 0.3s;
+  }
+
+  .sk-drawer-mobile-link:last-child {
+    border-bottom: none;
+  }
+
+  .sk-drawer-mobile-link:hover {
+    padding-left: 6px;
+    color: #555;
+  }
+
+  .sk-drawer-mobile-link svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.5;
+    flex-shrink: 0;
+  }
+
+  .sk-drawer-mobile-link .sk-dm-arrow {
+    margin-left: auto;
+    width: 14px;
+    height: 14px;
+    opacity: 0.5;
+    transition: transform 0.3s;
+  }
+
+  .sk-drawer-country-row.is-open .sk-dm-arrow {
+    transform: rotate(180deg);
+  }
+
+  .sk-drawer-country-sub {
+    list-style: none;
+    padding: 0 0 0 34px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    margin: 0;
+  }
+
+  .sk-drawer-country-row.is-open .sk-drawer-country-sub {
+    max-height: 500px;
+  }
+
+  .sk-drawer-country-sub li {
+    list-style: none;
+  }
+
+  .sk-drawer-country-sub a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    text-decoration: none;
+    border-bottom: 1px solid #f5f5f5;
+    transition: color 0.2s;
+  }
+
+  .sk-drawer-country-sub a:last-child {
+    border-bottom: none;
+  }
+
+  .sk-drawer-country-sub a:hover {
+    color: #000;
+  }
+
+  .sk-drawer-country-sub img {
+    width: 20px;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .sk-dm-flag {
+    width: 20px;
+    height: auto;
+    object-fit: contain;
+  }
+</style>
+
+<header class="sk-header-main" id="skHeaderMain">
+  <div class="sk-nav-left">
+    <button class="sk-icon" id="openDrawer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+
+  <div class="sk-nav-center">
+    <a href="/" class="sk-logo">
+      {% if logo != blank %}
+        <img src="{{ logo | image_url: width: logo_width }}" width="{{ logo_width }}" alt="{{ shop.name }}">
+      {% else %}
+        <span style="font-size: 22px; font-weight: 800; letter-spacing: 2px;">{{ shop.name | upcase }}</span>
+      {% endif %}
+    </a>
+  </div>
+
+  <div class="sk-nav-right sk-actions">
+    <div class="sk-country-container" id="countryToggle">
+      <div class="sk-country-trigger">
+        {% assign first_country = section.blocks | where: 'type', 'country' | first %}
+        {% if first_country.settings.flag != blank %}
+          <img
+            src="{{ first_country.settings.flag | image_url: width: 60 }}"
+            class="sk-country-flag-main"
+            alt=""
+          >
+        {% endif %}
+        <span>{{ first_country.settings.title }}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+
+      <ul class="sk-country-dropdown">
+        {% for block in section.blocks %}
+          {% if block.type == 'country' %}
+            <li class="sk-country-item" {{ block.shopify_attributes }}>
+              <a href="{{ block.settings.url | default: '#' }}" class="sk-country-link">
+                {% if block.settings.flag != blank %}
+                  <img
+                    src="{{ block.settings.flag | image_url: width: 40 }}"
+                    alt="{{ block.settings.title }}"
+                    class="sk-dropdown-flag"
+                  >
+                {% endif %}
+                <span>{{ block.settings.title }}</span>
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+
+    <a href="/account" class="sk-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </a>
+
+    <button class="sk-icon" id="openSearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </button>
+
+    <button class="sk-icon" id="openCartDrawer" style="position:relative;" aria-label="Open cart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <span style="position:absolute; top:-5px; right:-8px; background:#000; color:#fff; font-size:9px; width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+        {{- cart.item_count -}}
+      </span>
+    </button>
+  </div>
+</header>
+
+<div class="sk-search-overlay" id="searchOverlay">
+  <div class="sk-search-top-content" id="searchContentBox">
+    <div class="sk-search-inner">
+      <form action="/search" method="get">
+        <div class="sk-search-field-wrapper">
+          <input
+            type="text"
+            name="q"
+            placeholder="Search products..."
+            class="sk-search-field"
+            autocomplete="off"
+            id="predictiveSearchInput"
+          >
+          <button type="button" class="sk-close-search" id="closeSearch">&times;</button>
+        </div>
+      </form>
+      <div id="predictiveSearchResults" class="sk-predictive-results"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sk-overlay" id="skOverlay"></div>
+
+<div class="sk-drawer" id="skDrawer">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+    <span style="font-weight:800; letter-spacing:1px;">MENU</span>
+    <button id="closeDrawer" style="background:none; border:none; font-size:30px; cursor:pointer;">&times;</button>
+  </div>
+  <nav>
+    {% for link in linklists[main_menu].links %}
+      <div class="sk-menu-item">
+        <a href="{{ link.url }}" class="sk-menu-link">
+          {{ link.title }}
+          {% if link.links != blank %}
+            <svg
+              class="chevron"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          {% endif %}
+        </a>
+        {% if link.links != blank %}
+          <ul class="sk-submenu">
+            {% for child in link.links %}
+              <li>
+                <a href="{{ child.url }}" class="sk-menu-link" style="font-size:15px; font-weight:400;">
+                  {{- child.title -}}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </nav>
+
+  <div class="sk-drawer-mobile-extras">
+    <div class="sk-drawer-country-row" id="drawerCountryRow">
+      <button class="sk-drawer-mobile-link" id="drawerCountryToggle">
+        {% assign first_country = section.blocks | where: 'type', 'country' | first %}
+        {% if first_country.settings.flag != blank %}
+          <img
+            src="{{ first_country.settings.flag | image_url: width: 40 }}"
+            class="sk-dm-flag"
+            alt=""
+          >
+        {% endif %}
+        <span>{{ first_country.settings.title }}</span>
+        <svg class="sk-dm-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+      <ul class="sk-drawer-country-sub" id="drawerCountrySub">
+        {% for block in section.blocks %}
+          {% if block.type == 'country' %}
+            <li>
+              <a href="{{ block.settings.url | default: '#' }}">
+                {% if block.settings.flag != blank %}
+                  <img
+                    src="{{ block.settings.flag | image_url: width: 40 }}"
+                    alt="{{ block.settings.title }}"
+                  >
+                {% endif %}
+                <span>{{ block.settings.title }}</span>
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+
+    <a href="/account" class="sk-drawer-mobile-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>My Account</span>
+    </a>
+
+    <button class="sk-drawer-mobile-link" id="drawerOpenSearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <span>Search</span>
+    </button>
+  </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const drawer = document.getElementById('skDrawer');
+        const overlay = document.getElementById('skOverlay');
+        const searchOverlay = document.getElementById('searchOverlay');
+        const searchContentBox = document.getElementById('searchContentBox');
+        const countryToggle = document.getElementById('countryToggle');
+        const searchInput = document.getElementById('predictiveSearchInput');
+        const resultsContainer = document.getElementById('predictiveSearchResults');
+        const header = document.getElementById('skHeaderMain');
+
+        // Helper: push header behind any open drawer
+        function headerBehind() { header.classList.add('sk-behind-drawer'); }
+        function headerFront()  { header.classList.remove('sk-behind-drawer'); }
+      
+        const closeAll = () => {
+          drawer.classList.remove('is-open');
+          overlay.classList.remove('is-visible');
+          searchOverlay.classList.remove('is-open');
+          countryToggle.classList.remove('is-active');
+          document.body.style.overflow = '';
+          headerFront();
+        };
+      
+        // Drawer Logic
+        document.getElementById('openDrawer').onclick = (e) => {
+          e.stopPropagation();
+          headerBehind();
+          drawer.classList.add('is-open');
+          overlay.classList.add('is-visible');
+          document.body.style.overflow = 'hidden';
+        };
+      
+        document.getElementById('closeDrawer').onclick = closeAll;
+        overlay.onclick = closeAll;
+      
+        // Country Toggle
+        countryToggle.onclick = (e) => {
+          e.stopPropagation();
+          countryToggle.classList.toggle('is-active');
+        };
+      
+        // Search Open Logic
+        document.getElementById('openSearch').onclick = () => {
+          searchOverlay.classList.add('is-open');
+          document.body.style.overflow = 'hidden';
+          setTimeout(() => searchInput.focus(), 600);
+        };
+      
+        document.getElementById('closeSearch').onclick = closeAll;
+      
+        searchOverlay.onclick = (e) => {
+          if (e.target === searchOverlay) closeAll();
+        };
+      
+        searchContentBox.onclick = (e) => e.stopPropagation();
+      
+        // Predictive Search
+        searchInput.addEventListener('input', function () {
+          const query = this.value.trim();
+          if (query.length > 1) {
+            fetch(`/search/suggest.json?q=${query}*&resources[type]=product&resources[limit]=6`)
+              .then((res) => res.json())
+              .then((data) => {
+                const products = data.resources.results.products;
+                if (products.length > 0) {
+                  resultsContainer.innerHTML = products
+                    .map(
+                      (p) => `
+                          <a href="${p.url}" class="sk-result-item">
+                            <img src="${p.image}" alt="${p.title}">
+                            <div class="sk-result-info">
+                              <p class="sk-result-title">${p.title}</p>
+                              <p class="sk-result-price">${p.price}</p>
+                            </div>
+                          </a>
+                        `
+                    )
+                    .join('');
+                } else {
+                  resultsContainer.innerHTML = '<p style="font-size:12px; color:#999; padding:20px;">No results found</p>';
+                }
+              });
+          } else {
+            resultsContainer.innerHTML = '';
+          }
+        });
+      
+        // Accordion
+        document.querySelectorAll('.sk-menu-link').forEach((link) => {
+          link.onclick = function (e) {
+            if (this.nextElementSibling && this.nextElementSibling.classList.contains('sk-submenu')) {
+              e.preventDefault();
+              this.parentElement.classList.toggle('is-open');
+            }
+          };
+        });
+      
+        // Close country dropdown on window click
+        window.addEventListener('click', () => {
+          countryToggle.classList.remove('is-active');
+        });
+
+
+
+        document.getElementById('openCartDrawer').onclick = function (e) {
+          e.preventDefault();
+          headerBehind();
+          // Minimog theme standard cart drawer open event
+          document.dispatchEvent(new CustomEvent('m:cart:open'));
+          // Fallback: try calling .open() directly on the element
+          const cartDrawerEl = document.getElementById('MinimogCartDrawer');
+          if (cartDrawerEl && typeof cartDrawerEl.open === 'function') {
+            cartDrawerEl.open();
+          }
+        };
+
+        // Listen for Minimog's cart close events → restore header z-index
+        document.addEventListener('m:cart:close', headerFront);
+        document.addEventListener('m:cart:closed', headerFront);
+
+        // MutationObserver fallback: watch Minimog cart drawer open/close via class
+        const minimogCart = document.getElementById('MinimogCartDrawer');
+        if (minimogCart) {
+          new MutationObserver(() => {
+            const isOpen = minimogCart.classList.contains('is-open')
+                        || minimogCart.classList.contains('m-open')
+                        || minimogCart.hasAttribute('open');
+            isOpen ? headerBehind() : headerFront();
+          }).observe(minimogCart, { attributes: true, attributeFilter: ['class', 'open'] });
+        }
+
+
+
+        // Drawer Country Accordion
+        const drawerCountryRow    = document.getElementById('drawerCountryRow');
+        const drawerCountryToggle = document.getElementById('drawerCountryToggle');
+
+        if (drawerCountryToggle && drawerCountryRow) {
+          drawerCountryToggle.onclick = function (e) {
+            e.stopPropagation();
+            drawerCountryRow.classList.toggle('is-open');
+          };
+        }
+
+        // Drawer Search Button — closes drawer first, then opens search
+        const drawerOpenSearch = document.getElementById('drawerOpenSearch');
+        if (drawerOpenSearch) {
+          drawerOpenSearch.onclick = function () {
+            // Close drawer
+            drawer.classList.remove('is-open');
+            overlay.classList.remove('is-visible');
+            document.body.style.overflow = '';
+            // Open search after drawer animation completes
+            setTimeout(() => {
+              searchOverlay.classList.add('is-open');
+              document.body.style.overflow = 'hidden';
+              setTimeout(() => searchInput.focus(), 600);
+            }, 420);
+          };
+        }
+
+
+        /* =========================================================================
+           🔥 NEW STICKY & SCROLL LOGIC 
+           ========================================================================= */
+        const stickyMode = "{{ section.settings.sticky_mode | default: 'always' }}";
+        const isTransparentEnabled = {{ section.settings.enable_transparent | default: false }};
+        
+        // Apply base mode
+        header.classList.add(`sk-sticky-${stickyMode}`);
+      
+        let lastScrollY = window.scrollY;
+        let ticking = false;
+      
+        // Initial check for transparent state
+        if (isTransparentEnabled && lastScrollY <= 10) {
+          header.classList.add('is-transparent');
+        }
+      
+        function onScrollUpdate() {
+          const currentScrollY = window.scrollY;
+          
+          // 1. Manage Transparent vs Scrolled Background
+          if (isTransparentEnabled) {
+            if (currentScrollY <= 10) {
+              header.classList.add('is-transparent');
+              header.classList.remove('is-scrolled');
+            } else {
+              header.classList.remove('is-transparent');
+              header.classList.add('is-scrolled');
+            }
+          } else {
+            // Standard background switch when scrolling down
+            if (currentScrollY > 10) {
+              header.classList.add('is-scrolled');
+            } else {
+              header.classList.remove('is-scrolled');
+            }
+          }
+      
+          // 2. Manage Scroll Up / Hide Logic
+          if (stickyMode === 'up') {
+            if (currentScrollY > lastScrollY && currentScrollY > 150) {
+              header.classList.add('is-hidden'); // Scrolling Down
+            } else {
+              header.classList.remove('is-hidden'); // Scrolling Up
+            }
+          }
+          
+          lastScrollY = currentScrollY;
+          ticking = false;
+        }
+      
+        window.addEventListener('scroll', () => {
+          if (!ticking) {
+            window.requestAnimationFrame(onScrollUpdate);
+            ticking = true;
+          }
+        }, { passive: true });
+      
+      });
+</script>
+
+{% schema %}
+{
+  "name": "Minimog Pro Nav",
+  "settings": [
+    { "type": "link_list", "id": "main_menu", "label": "Menu", "default": "main-menu" },
+    { "type": "image_picker", "id": "logo", "label": "Logo" },
+    {
+      "type": "range",
+      "id": "logo_max_width",
+      "label": "Logo Width",
+      "min": 50,
+      "max": 250,
+      "step": 5,
+      "default": 120
+    },
+    { "type": "range", "id": "nav_height", "label": "Nav Height", "min": 60, "max": 120, "step": 2, "default": 80 },
+    {
+      "type": "range",
+      "id": "padding_horizontal",
+      "label": "Horizontal Padding",
+      "min": 10,
+      "max": 100,
+      "step": 2,
+      "default": 40
+    },
+    { "type": "color", "id": "bg_color", "label": "Background", "default": "#ffffff" },
+    { "type": "color", "id": "link_color", "label": "Icons/Text", "default": "#000000" },
+    {
+      "type": "header",
+      "content": "Advanced Sticky & Transparent"
+    },
+    {
+      "type": "select",
+      "id": "sticky_mode",
+      "label": "Sticky Behavior",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "up", "label": "On Scroll Up" },
+        { "value": "always", "label": "Always" }
+      ],
+      "default": "always"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_transparent",
+      "label": "Enable Transparent on Top",
+      "info": "Navbar will overlap the first section and switch colors upon scrolling.",
+      "default": false
+    }
+  ],
+  "blocks": [
+    {
+      "type": "country",
+      "name": "Country",
+      "settings": [
+        { "type": "image_picker", "id": "flag", "label": "Country Flag" },
+        { "type": "text", "id": "title", "label": "Name", "default": "USD $" },
+        { "type": "url", "id": "url", "label": "Link" }
+      ]
+    }
+  ],
+  "presets": [{ "name": "Minimog Pro Nav" }]
+}
+{% endschema %}
