@@ -693,8 +693,8 @@
         // Predictive Search
         searchInput.addEventListener('input', function () {
           const query = this.value.trim();
-          if (query.length > 1) {
-            fetch(`/search/suggest.json?q=${query}*&resources[type]=product&resources[limit]=6`)
+          if (query.length >= 1) {
+            fetch(`/search/suggest.json?q=${query}*&resources[type]=product&resources[limit]=9`)
               .then((res) => res.json())
               .then((data) => {
                 const products = data.resources.results.products;
