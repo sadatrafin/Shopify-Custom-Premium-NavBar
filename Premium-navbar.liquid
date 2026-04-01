@@ -5,438 +5,531 @@
 %}
 
 <style>
-  :root {
-    --nav-bg: {{ section.settings.bg_color | default: '#ffffff' }};
-    --nav-text: {{ section.settings.link_color | default: '#000000' }};
-    --accent-color: #000;
-    --transition-smooth: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-  }
+    :root {
+      --nav-bg: {{ section.settings.bg_color | default: '#ffffff' }};
+      --nav-text: {{ section.settings.link_color | default: '#000000' }};
+      --accent-color: #000;
+      --transition-smooth: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
 
-  .sk-header-main {
-    background: var(--nav-bg);
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    padding: 0 {{ section.settings.padding_horizontal | default: 20 }}px;
-    height: {{ section.settings.nav_height | default: 80 }}px;
-    position: sticky; top: 0; z-index: 1000;
-    border-bottom: 1px solid #eee;
-    max-width: 1800px;
-    margin: auto;
-  }
-
-  /* ── Country Selector (Customized to match image) ── */
-  .sk-country-container { position: relative; margin-right: 15px; }
-
-  .sk-country-trigger {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    color: var(--nav-text);
-    padding: 5px 0;
-    user-select: none;
-  }
-
-  .sk-country-flag-main {
-    width: 20px;
-    height: 15px;
-    display: block;
-    object-fit: contain;
-  }
-
-  .sk-country-trigger svg {
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 14px;
-    height: 14px;
-    opacity: 0.6;
-  }
-
-  .sk-country-container.is-active .sk-country-trigger svg {
-    transform: rotate(180deg);
-  }
-
-  .sk-country-dropdown {
-    position: absolute;
-    top: calc(100% + 15px);
-    right: 0;
-    background: #fff;
-    width: 240px;
-    border-radius: 6px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.12);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(10px);
-    transition: var(--transition-smooth);
-    list-style: none;
-    padding: 8px 0;
-    z-index: 9999;
-    margin: 0;
-  }
-
-  .sk-country-container.is-active .sk-country-dropdown {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-  }
-
-  .sk-country-item { list-style: none; }
-
-  .sk-country-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 18px;
-    text-decoration: none;
-    color: #111;
-    font-size: 13px;
-    font-weight: 500;
-    transition: background 0.2s;
-  }
-
-  .sk-country-link:hover {
-    background: #f8f8f8;
-  }
-
-  .sk-dropdown-flag {
-    width: 20px;
-    height: auto;
-    object-fit: contain;
-  }
-
-  /* ── Search Overlay & Predictive Results ── */
-  .sk-search-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 7000;
-    clip-path: circle(0% at 90% 10%);
-    transition: clip-path 0.6s ease-in-out;
-  }
-  .sk-search-overlay.is-open { clip-path: circle(150% at 90% 10%); }
-
-  .sk-search-top-content {
-    background: #fff;
-    width: 100%;
-    padding: 60px 20px;
-    display: flex;
-    justify-content: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-  }
-
-  .sk-search-inner { width: 100%; max-width: 900px; position: relative; background: white; color: black !important; }
-  .sk-search-field-wrapper { position: relative; margin-bottom: 30px; }
-
-  .sk-search-field {
-    width: 100%; border: 1px solid #000;
-    padding: 12px 40px 12px 15px; font-size: 16px; font-weight: 400; outline: none;
-    text-transform: uppercase; letter-spacing: 1px;
-    color: #000;
-  }
-
-  .sk-close-search {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    font-size: 20px; cursor: pointer; background: none; border: none; color: #000;
-  }
-
-  .sk-predictive-results {
-    width: 100%; max-height: 50vh; overflow-y: auto;
-    text-align: left;
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px 20px;
-  }
-  @media (max-width: 768px) {
-    .sk-predictive-results { grid-template-columns: repeat(1, 1fr); gap: 15px; }
-    .sk-search-top-content { padding: 40px 15px; }
-  }
-
-  .sk-result-item { display: flex; align-items: center; gap: 15px; text-decoration: none; color: #000; transition: 0.3s; }
-  .sk-result-item:hover { opacity: 0.7; }
-  .sk-result-item img { width: 60px; height: 60px; object-fit: contain; background: #f4f4f4; padding: 5px; }
-  .sk-result-info { display: flex; flex-direction: column; justify-content: center; }
-  .sk-result-title { font-size: 12px; font-weight: 800; margin: 0 0 4px 0; text-transform: uppercase; }
-  .sk-result-price { font-size: 12px; color: black; margin: 0; font-weight: 300; }
-
-  /* ── Drawer & Overlay ── */
-  .sk-drawer {
-    position: fixed; top: 0; left: -100%; width: 350px; height: 100%;
-    background: #fff; z-index: 9000; transition: var(--transition-smooth);
-    padding: 50px 30px; box-shadow: 20px 0 50px rgba(0,0,0,0.05);
-    overflow-y: auto;
-  }
-  .sk-drawer.is-open { left: 0; }
-
-  .sk-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(8px);
-    opacity: 0; visibility: hidden; z-index: 8000; transition: opacity 0.4s ease, visibility 0.4s ease;
-    pointer-events: none;
-  }
-  .sk-overlay.is-visible { opacity: 1; visibility: visible; pointer-events: auto; }
-
-  /* ── Menu Items ── */
-  .sk-menu-item { list-style: none; margin-bottom: 10px; }
-  .sk-menu-link {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 18px; font-weight: 600; text-decoration: none; color: #000;
-    padding: 12px 0; transition: 0.3s;
-  }
-  .sk-menu-link:hover { padding-left: 10px; color: #666; }
-
-  .sk-submenu {
-    list-style: none; max-height: 0; overflow: hidden;
-    transition: max-height 0.5s ease; background: #f9f9f9; padding-left: 15px;
-  }
-  .sk-menu-item.is-open .sk-submenu { max-height: 1000px; }
-  .sk-menu-item.is-open .chevron { transform: rotate(180deg); }
-  .chevron { transition: transform 0.3s; }
-
-  .sk-actions { display: flex; align-items: center; gap: 20px; justify-content: flex-end; }
-  .sk-icon { color: var(--nav-text); cursor: pointer; position: relative; background: none; border: none; display: flex; align-items: center; padding: 0; }
-  .sk-icon svg { width: 22px; height: 22px; stroke-width: 1.5; }
-
-
-  /* =========================================================================
-     🔥 NEW ADVANCED RESPONSIVENESS & STICKY FEATURES (APPENDED)
-     ========================================================================= */
-
-  /* Sticky Mode Overrides */
-  .sk-header-main {
-    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
-    will-change: transform, background-color;
-  }
-
-  .sk-header-main.sk-sticky-none { position: relative !important; }
-
-  .sk-header-main.sk-sticky-always,
-  .sk-header-main.sk-sticky-up {
-    position: fixed !important;
-    top: 0; left: 0; right: 0; width: 100%;
-  }
-
-  .sk-header-main.is-hidden {
-    transform: translateY(-100%) !important;
-  }
-
-  /* Scrolled State */
-  .sk-header-main.is-scrolled {
-    background: var(--nav-bg) !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
-    border-bottom: 1px solid transparent !important; /* Removes harsh line when floating */
-  }
-
-  /* Transparent Top State */
-  .sk-header-main.is-transparent {
-    background: transparent !important;
-    border-bottom-color: transparent !important;
-    box-shadow: none !important;
-    position: absolute !important; /* Merges behind hero section */
-  }
-
-  /* Transparent Color Switching (Only targeting text/icons, not dropdowns) */
-  .sk-header-main.is-transparent .sk-icon,
-  .sk-header-main.is-transparent .sk-country-trigger span,
-  .sk-header-main.is-transparent .sk-logo span {
-    color: #ffffff !important;
-  }
-  .sk-header-main.is-transparent .sk-icon svg,
-  .sk-header-main.is-transparent .sk-country-trigger svg {
-    stroke: #ffffff !important;
-    color: #ffffff !important;
-  }
-
-  /* Advanced Mobile & Tablet Optimization */
-  @media (max-width: 990px) {
+    /* ── Header Base ── */
     .sk-header-main {
-      padding: 0 15px !important;
-      height: 65px !important; /* Slightly thinner premium look on mobile */
+      background: var(--nav-bg);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 {{ section.settings.padding_horizontal | default: 20 }}px;
+      height: {{ section.settings.nav_height | default: 80 }}px;
+      position: sticky; top: 0; z-index: 1000;
+      border-bottom: 1px solid #eee;
+      max-width: 1800px;
+      margin: auto;
     }
 
-    /* Touch-Friendly Spacing & Alignment */
-    .sk-actions { gap: 12px !important; }
+    /* ── Country Selector (Customized to match image) ── */
+    .sk-country-container { position: relative; margin-right: 15px; }
 
-    .sk-icon, .sk-country-trigger {
-      min-width: 40px;
-      min-height: 40px;
+    .sk-country-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      color: var(--nav-text);
+      padding: 5px 0;
+      user-select: none;
+    }
+
+    .sk-country-flag-main {
+      width: 20px;
+      height: 15px;
+      display: block;
+      object-fit: contain;
+    }
+
+    .sk-country-trigger svg {
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 14px;
+      height: 14px;
+      opacity: 0.6;
+    }
+
+    /* Arrow Rotation */
+    .sk-country-container.is-active .sk-country-trigger svg {
+      transform: rotate(180deg);
+    }
+
+    .sk-country-dropdown {
+      position: absolute;
+      top: calc(100% + 15px);
+      right: 0;
+      background: #fff;
+      width: 200px;
+      border-radius: 6px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: var(--transition-smooth);
+      list-style: none;
+      padding: 8px 0;
+      z-index: 9999;
+      margin: 0;
+    }
+
+    .sk-country-container.is-active .sk-country-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .sk-country-item { list-style: none; }
+
+    .sk-country-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      text-decoration: none;
+      color: #111;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .sk-country-link:hover {
+      background: #f8f8f8;
+    }
+
+    .sk-dropdown-flag {
+      width: 20px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    /* ── Search Overlay & Predictive Results ── */
+    .sk-search-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 7000;
+      clip-path: circle(0% at 90% 10%);
+      transition: clip-path 0.6s ease-in-out;
+      /* Prevent body scroll when swiping on the shadow area */
+      overscroll-behavior: none;
+    }
+    .sk-search-overlay.is-open { clip-path: circle(150% at 90% 10%); }
+
+    .sk-search-top-content {
+      background: #fff;
+      width: 100%;
+      padding: 60px 20px;
+      display: flex;
       justify-content: center;
-      padding: 5px; /* Increase tap area */
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      /* Professional Scrolling for smaller mobile heights */
+      max-height: 100vh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Hide scrollbar for the wrapper to keep it clean */
+    .sk-search-top-content::-webkit-scrollbar { display: none; }
+
+    .sk-search-inner { width: 100%; max-width: 900px; position: relative; background: white; color: black !important; }
+    .sk-search-field-wrapper { position: relative; margin-bottom: 30px; }
+
+    .sk-search-field {
+      width: 100%; border: 1px solid #000;
+      padding: 12px 40px 12px 15px; font-size: 16px; font-weight: 400; outline: none;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: #000;
     }
 
-    /* Clean Icon Layout */
-    .sk-country-container { margin-right: 0px !important; }
-    .sk-country-trigger span { display: none !important; } /* Hide text, show flag */
-    .sk-country-trigger gap: 5px !important;
-
-    /* Logo scaling */
-    .sk-logo img { max-width: 110px !important; height: auto; }
-    .sk-logo span { font-size: 18px !important; }
-
-    /* Cart Bubble centering for mobile */
-    .sk-icon span { top: 2px !important; right: 0px !important; }
-  }
-
-  /* ── ADDITIONAL OVERRIDES ADDED TO TARGET NEW REQUIREMENTS ── */
-  .sk-header-main {
-    transition: z-index 0s, transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
-  }
-
-  /* Header goes behind any open drawer */
-  .sk-header-main.sk-behind-drawer {
-    z-index: 10 !important;
-  }
-
-  /* ── Minimog Cart Drawer: force above navbar, glass backdrop ── */
-  #MinimogCartDrawer {
-    z-index: 9500 !important;
-  }
-
-  /* Target Minimog's own cart overlay and give it glass crystal style */
-  .m-cart__overlay,
-  .m-overlay,
-  [data-overlay] {
-    backdrop-filter: blur(18px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
-    background: rgba(10, 10, 20, 0.25) !important;
-  }
-
-  /* General: any Shopify theme overlay that covers page when cart opens */
-  body.js-drawer-open .m-cart__overlay,
-  body[class*="drawer"] .m-cart__overlay {
-    backdrop-filter: blur(18px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
-  }
-
-  @media (max-width: 990px) {
-    .sk-country-container,
-    a[href="/account"],
-    #openSearch {
-      display: none !important;
+    .sk-close-search {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 20px; cursor: pointer; background: none; border: none; color: #000;
     }
-  }
 
-  .sk-drawer-mobile-extras {
-    display: none; /* Hidden on desktop */
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-    flex-direction: column;
-    gap: 0;
-  }
+    .sk-predictive-results {
+      width: 100%; max-height: 50vh; overflow-y: auto;
+      text-align: left;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px 20px;
 
-  @media (max-width: 990px) {
+      /* --- Professional Scrolling Fixes --- */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    /* Search Custom Scrollbar */
+    .sk-predictive-results::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sk-predictive-results::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sk-predictive-results::-webkit-scrollbar-thumb {
+      background: #e0e0e0;
+      border-radius: 10px;
+    }
+    .sk-predictive-results::-webkit-scrollbar-thumb:hover {
+      background: #b3b3b3;
+    }
+
+    @media (max-width: 768px) {
+      .sk-predictive-results { grid-template-columns: repeat(1, 1fr); gap: 15px; }
+      .sk-search-top-content { padding: 40px 15px; }
+    }
+
+    .sk-result-item { display: flex; align-items: center; gap: 15px; text-decoration: none; color: #000; transition: 0.3s; }
+    .sk-result-item:hover { opacity: 0.7; }
+    .sk-result-item img { width: 60px; height: 60px; object-fit: contain; background: #f4f4f4; padding: 5px; }
+    .sk-result-info { display: flex; flex-direction: column; justify-content: center; }
+    .sk-result-title { font-size: 12px; font-weight: 800; margin: 0 0 4px 0; text-transform: uppercase; }
+    .sk-result-price { font-size: 12px; color: black; margin: 0; font-weight: 300; }
+
+    /* ── Drawer & Overlay ── */
+    .sk-drawer {
+      position: fixed; top: 0; left: -100%; width: 350px; height: 100%;
+      background: #fff; z-index: 9000; transition: var(--transition-smooth);
+      padding: 30px; box-shadow: 20px 0 50px rgba(0,0,0,0.05);
+
+      /* --- Professional Scrolling Fixes --- */
+      box-sizing: border-box; /* Prevents padding from breaking 100% height */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* Smooth momentum scroll for mobile/iOS */
+      overscroll-behavior: contain; /* Prevents background body from scrolling */
+    }
+    .sk-drawer.is-open { left: 0; }
+
+    /* Custom Scrollbar specifically for the drawer to look premium */
+    .sk-drawer::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sk-drawer::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sk-drawer::-webkit-scrollbar-thumb {
+      background: #e0e0e0;
+      border-radius: 10px;
+    }
+    .sk-drawer::-webkit-scrollbar-thumb:hover {
+      background: #b3b3b3;
+    }
+
+    .sk-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 0; visibility: hidden; z-index: 8000; transition: opacity 0.4s ease, visibility 0.4s ease;
+      pointer-events: none;
+    }
+    .sk-overlay.is-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+
+    /* ── Menu Items ── */
+    .sk-menu-item { list-style: none; margin-bottom: 10px; }
+    .sk-menu-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      line-height: 1.7;
+      letter-spacing: 2.5px;
+      border-bottom: 1px solid #80808059;
+      font-weight: 500;
+      text-decoration: none;
+      color: #000;
+      padding: 12px 0;
+      transition: 0.3s;
+  }
+    .sk-menu-link:hover { padding-left: 10px; opacity:0.8 }
+
+    .sk-submenu {
+      list-style: none; max-height: 0; overflow: hidden;
+      transition: max-height 0.5s ease; background: #f9f9f9; padding-left: 15px;
+    }
+    .sk-menu-item.is-open .sk-submenu { max-height: 1000px; }
+    .sk-menu-item.is-open .chevron { transform: rotate(180deg); }
+    .chevron { transition: transform 0.3s; }
+
+    .sk-actions { display: flex; align-items: center; gap: 20px; justify-content: flex-end; }
+    .sk-icon { color: var(--nav-text); cursor: pointer; position: relative; background: none; border: none; display: flex; align-items: center; padding: 0; }
+    .sk-icon svg { width: 25px; height: 25px; stroke-width: 1.5; }
+
+
+    /* =========================================================================
+       🔥 NEW ADVANCED RESPONSIVENESS & STICKY FEATURES (APPENDED)
+       ========================================================================= */
+
+    /* Sticky Mode Overrides */
+    .sk-header-main {
+      transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+      will-change: transform, background-color;
+    }
+
+    .sk-header-main.sk-sticky-none { position: relative !important; }
+
+    .sk-header-main.sk-sticky-always,
+    .sk-header-main.sk-sticky-up {
+      position: fixed !important;
+      top: 0; left: 0; right: 0; width: 100%;
+    }
+
+    .sk-header-main.is-hidden {
+      transform: translateY(-100%) !important;
+    }
+
+    /* Scrolled State */
+    .sk-header-main.is-scrolled {
+      background: var(--nav-bg) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+      border-bottom: 1px solid transparent !important; /* Removes harsh line when floating */
+    }
+
+    /* Transparent Top State */
+    .sk-header-main.is-transparent {
+      background: transparent !important;
+      border-bottom-color: transparent !important;
+      box-shadow: none !important;
+      position: absolute !important; /* Merges behind hero section */
+    }
+
+    /* Transparent Color Switching (Only targeting text/icons, not dropdowns) */
+    .sk-header-main.is-transparent .sk-icon,
+    .sk-header-main.is-transparent .sk-country-trigger span,
+    .sk-header-main.is-transparent .sk-logo span {
+      color: #ffffff !important;
+    }
+    .sk-header-main.is-transparent .sk-icon svg,
+    .sk-header-main.is-transparent .sk-country-trigger svg {
+      stroke: #ffffff !important;
+      color: #ffffff !important;
+    }
+
+    /* Advanced Mobile & Tablet Optimization */
+    @media (max-width: 990px) {
+      .sk-header-main {
+        padding: 0 15px !important;
+        height: 65px !important; /* Slightly thinner premium look on mobile */
+      }
+
+      /* Touch-Friendly Spacing & Alignment */
+      .sk-actions { gap: 12px !important; }
+
+      .sk-icon, .sk-country-trigger {
+        min-width: 40px;
+        min-height: 40px;
+        justify-content: center;
+        padding: 5px; /* Increase tap area */
+      }
+
+      /* Clean Icon Layout */
+      .sk-country-container { margin-right: 0px !important; }
+      .sk-country-trigger span { display: none !important; } /* Hide text, show flag */
+      .sk-country-trigger gap: 5px !important;
+
+      /* Logo scaling */
+      .sk-logo img { max-width: 110px !important; height: auto; }
+      .sk-logo span { font-size: 18px !important; }
+
+      /* Cart Bubble centering for mobile */
+      .sk-icon span { top: 2px !important; right: 0px !important; }
+    }
+
+    /* ── ADDITIONAL OVERRIDES ADDED TO TARGET NEW REQUIREMENTS ── */
+    .sk-header-main {
+      {% comment %} max-width: 100% !important;
+      margin: 0 !important; {% endcomment %}
+      transition: z-index 0s, transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+    }
+
+    /* Header goes behind any open drawer */
+    .sk-header-main.sk-behind-drawer {
+      z-index: 10 !important;
+    }
+
+    /* ── Minimog Cart Drawer: force above navbar, glass backdrop ── */
+    #MinimogCartDrawer {
+      z-index: 9500 !important;
+    }
+
+    /* Target Minimog's own cart overlay and give it glass crystal style */
+    .m-cart__overlay,
+    .m-overlay,
+    [data-overlay] {
+      backdrop-filter: blur(18px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+      background: rgba(10, 10, 20, 0.25) !important;
+    }
+
+    /* General: any Shopify theme overlay that covers page when cart opens */
+    body.js-drawer-open .m-cart__overlay,
+    body[class*="drawer"] .m-cart__overlay {
+      backdrop-filter: blur(18px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+    }
+
+    @media (max-width: 990px) {
+      .sk-country-container,
+      a[href="/account"],
+      #openSearch {
+        display: none !important;
+      }
+    }
+
     .sk-drawer-mobile-extras {
-      display: flex; /* Show only on mobile */
+      display: none; /* Hidden on desktop */
+      margin-top: 30px;
+      padding-top: 20px;
+      flex-direction: column;
+      gap: 0;
     }
-  }
 
-  .sk-drawer-mobile-link {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 13px 0;
-    font-size: 16px;
-    font-weight: 500;
-    color: #000;
-    text-decoration: none;
-    background: none;
-    border: none;
-    border-bottom: 1px solid #f0f0f0;
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    letter-spacing: 0.2px;
-    transition: padding-left 0.3s;
-  }
+    @media (max-width: 990px) {
+      .sk-drawer-mobile-extras {
+        display: flex; /* Show only on mobile */
+      }
+    }
 
-  .sk-drawer-mobile-link:last-child {
-    border-bottom: none;
-  }
+    .sk-drawer-mobile-link {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: #000;
+      text-decoration: none;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      letter-spacing: 0.2px;
+      transition: padding-left 0.3s;
+    }
 
-  .sk-drawer-mobile-link:hover {
-    padding-left: 6px;
-    color: #555;
-  }
+    .sk-drawer-mobile-link:last-child {
+      border-bottom: none;
+    }
 
-  .sk-drawer-mobile-link svg {
-    width: 20px;
-    height: 20px;
-    stroke-width: 1.5;
-    flex-shrink: 0;
-  }
+    .sk-drawer-mobile-link:hover {
+      padding-left: 6px;
+      color: #555;
+    }
 
-  .sk-drawer-mobile-link .sk-dm-arrow {
-    margin-left: auto;
-    width: 14px;
-    height: 14px;
-    opacity: 0.5;
-    transition: transform 0.3s;
-  }
+    .sk-drawer-mobile-link svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.5;
+      flex-shrink: 0;
+    }
 
-  .sk-drawer-country-row.is-open .sk-dm-arrow {
-    transform: rotate(180deg);
-  }
+    .sk-drawer-mobile-link .sk-dm-arrow {
+      margin-left: auto;
+      width: 14px;
+      height: 14px;
+      opacity: 0.5;
+      transition: transform 0.3s;
+    }
 
-  .sk-drawer-country-sub {
-    list-style: none;
-    padding: 0 0 0 34px;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s ease;
-    margin: 0;
-  }
+    .sk-drawer-country-row.is-open .sk-dm-arrow {
+      transform: rotate(180deg);
+    }
 
-  .sk-drawer-country-row.is-open .sk-drawer-country-sub {
-    max-height: 500px;
-  }
+    .sk-drawer-country-sub {
+      list-style: none;
+      padding: 0 0 0 34px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+      margin: 0;
+    }
 
-  .sk-drawer-country-sub li {
-    list-style: none;
-  }
+    .sk-drawer-country-row.is-open .sk-drawer-country-sub {
+      max-height: 500px;
+    }
 
-  .sk-drawer-country-sub a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 0;
-    font-size: 13px;
-    font-weight: 500;
-    color: #333;
-    text-decoration: none;
-    border-bottom: 1px solid #f5f5f5;
-    transition: color 0.2s;
-  }
+    .sk-drawer-country-sub li {
+      list-style: none;
+    }
 
-  .sk-drawer-country-sub a:last-child {
-    border-bottom: none;
-  }
+    .sk-drawer-country-sub a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+      text-decoration: none;
+      border-bottom: 1px solid #f5f5f5;
+      transition: color 0.2s;
+    }
 
-  .sk-drawer-country-sub a:hover {
-    color: #000;
-  }
+    .sk-drawer-country-sub a:last-child {
+      border-bottom: none;
+    }
 
-  .sk-drawer-country-sub img {
-    width: 20px;
-    height: auto;
-    object-fit: contain;
-  }
+    .sk-drawer-country-sub a:hover {
+      color: #000;
+    }
 
-  .sk-dm-flag {
-    width: 20px;
-    height: auto;
-    object-fit: contain;
-  }
+    .sk-drawer-country-sub img {
+      width: 20px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .sk-dm-flag {
+      width: 20px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      font-size: 45px;
+      cursor: pointer;
+      font-weight: 300;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      transition: all 0.5s ease;
+    }
+
+    /* Hover effect */
+    .close-btn:hover {
+      transform: rotate(180deg);
+      background-color: rgba(0, 0, 0, 0.05);
+      color: #000;
+    }
 </style>
 
 <header class="sk-header-main" id="skHeaderMain">
   <div class="sk-nav-left">
     <button class="sk-icon" id="openDrawer">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="1" y1="5" x2="40" y2="5"></line>
+        <line x1="1" y1="12" x2="40" y2="12"></line>
+        <line x1="1" y1="19" x2="40" y2="19"></line>
       </svg>
     </button>
   </div>
@@ -542,9 +635,9 @@
 <div class="sk-overlay" id="skOverlay"></div>
 
 <div class="sk-drawer" id="skDrawer">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
-    <span style="font-weight:800; letter-spacing:1px;">MENU</span>
-    <button id="closeDrawer" style="background:none; border:none; font-size:30px; cursor:pointer;">&times;</button>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <span style="font-weight:600; letter-spacing:2.5px;">MENU</span>
+    <button id="closeDrawer" class="close-btn">&times;</button>
   </div>
   <nav>
     {% for link in linklists[main_menu].links %}
